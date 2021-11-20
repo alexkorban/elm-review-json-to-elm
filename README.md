@@ -1,4 +1,4 @@
-# elm-review-json2elm
+# elm-review-json-to-elm
 
 Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-review/latest/) rules to generate JSON decoders and encoders from a JSON sample in a `Debug.todo` string. The JSON needs to be prefixed with "@json" to allow the rule to detect it. 
 
