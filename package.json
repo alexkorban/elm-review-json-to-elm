@@ -1,5 +1,5 @@
 {
-  "name": "elm-review-json2elm",
+  "name": "elm-review-json-to-elm",
   "scripts": {
     "test": "npm-run-all --print-name --silent --sequential test:make test:format test:run test:review test:package",
     "test:make": "elm make --docs=docs.json",

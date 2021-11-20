@@ -1,11 +1,11 @@
 # elm-review-json2elm
 
-Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-review/latest/) rules to REPLACEME.
+Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-review/latest/) rules to generate JSON decoders and encoders from a JSON sample in a `Debug.todo` string. The JSON needs to be prefixed with "@json" to allow the rule to detect it. 
 
 
 ## Provided rules
 
-- [`Json2Elm`](https://package.elm-lang.org/packages/alexkorban/elm-review-json2elm/1.0.0/Json2Elm) - Reports REPLACEME.
+- [`JsonToElm`](https://package.elm-lang.org/packages/alexkorban/elm-review-json-to-elm/1.0.0/JsonToElm) - Finds JSON samples in `Debug.todo` strings and offers to generate JSON decoders and encoders from them.
 
 
 ## Configuration
@@ -13,12 +13,12 @@ Provides [`elm-review`](https://package.elm-lang.org/packages/jfmengels/elm-revi
 ```elm
 module ReviewConfig exposing (config)
 
-import Json2Elm
+import JsonToElm
 import Review.Rule exposing (Rule)
 
 config : List Rule
 config =
-    [ Json2Elm.rule
+    [ JsonToElm.rule
     ]
 ```
 
@@ -28,5 +28,5 @@ config =
 You can try the example configuration above out by running the following command:
 
 ```bash
-elm-review --template alexkorban/elm-review-json2elm/example
+elm-review --template alexkorban/elm-review-json-to-elm/example
 ```

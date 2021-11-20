@@ -1,6 +1,6 @@
-module Json2ElmTest exposing (all)
+module JsonToElmTest exposing (all)
 
-import Json2Elm exposing (rule)
+import JsonToElm exposing (rule)
 import Review.Test
 import Test exposing (Test, describe, test)
 
@@ -167,7 +167,7 @@ sample =
 """
                     in
                     startCode
-                        |> Review.Test.run Json2Elm.rule
+                        |> Review.Test.run JsonToElm.rule
                         |> Review.Test.expectNoErrors
             ]
         ]
@@ -191,7 +191,7 @@ testCase name imports errorThing expectedBody =
                 ++ "\n\n"
                 ++ errorThing
                 |> String.replace "\u{000D}" ""
-                |> Review.Test.run Json2Elm.rule
+                |> Review.Test.run JsonToElm.rule
                 |> Review.Test.expectErrors
                     [ Review.Test.error { message = "Here's my attempt to complete this stub", details = [ "" ], under = errorThing }
                         |> Review.Test.whenFixed expected
