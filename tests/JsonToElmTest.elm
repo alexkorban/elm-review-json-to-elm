@@ -1,6 +1,6 @@
 module JsonToElmTest exposing (all)
 
-import JsonToElm exposing (rule)
+import JsonToElm
 import Review.Test
 import Test exposing (Test, describe, test)
 

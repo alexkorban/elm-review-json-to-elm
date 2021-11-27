@@ -7,20 +7,14 @@ module JsonToElm exposing (rule)
 -}
 
 import AssocList as Dict exposing (Dict)
-import AssocSet as Set exposing (Set)
-import Elm.Project
 import Elm.Syntax.Declaration as Declaration exposing (Declaration)
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression as Expression exposing (Expression, Function)
 import Elm.Syntax.Import exposing (Import)
-import Elm.Syntax.Infix as Infix exposing (InfixDirection(..))
 import Elm.Syntax.ModuleName exposing (ModuleName)
 import Elm.Syntax.Node as Node exposing (Node(..))
-import Elm.Syntax.Pattern exposing (Pattern(..))
+import Elm.Syntax.Pattern exposing (Pattern)
 import Elm.Syntax.Range exposing (Range)
-import Elm.Syntax.Signature exposing (Signature)
-import Elm.Syntax.Type
-import Elm.Syntax.TypeAnnotation as TypeAnnotation exposing (TypeAnnotation)
 import ElmCodeGenerator
 import Review.Fix
 import Review.ModuleNameLookupTable as ModuleNameLookupTable exposing (ModuleNameLookupTable)
@@ -30,7 +24,7 @@ import Review.Rule as Rule exposing (Error, ModuleKey, Rule)
 {-| Generates Elm code from a JSON sample in JsonString
 
     config =
-        [ Json2Elm.rule
+        [ JsonToElm.rule
         ]
 
 
@@ -81,7 +75,7 @@ generated.
 You can try this rule out by running the following command:
 
 ```bash
-elm-review --template alexkorban/elm-review-json2elm/example --rules Json2Elm
+elm-review --template alexkorban/elm-review-json-to-elm/example --rules JsonToElm
 ```
 
 -}
@@ -95,7 +89,7 @@ rule =
             , fromModuleToProject = Rule.initContextCreator fromModuleToProject |> Rule.withModuleKey |> Rule.withMetadata
             , foldProjectContexts = foldProjectContexts
             }
-        |> Rule.withElmJsonProjectVisitor elmJsonVisitor
+        |> Rule.withElmJsonProjectVisitor (\_ projectContext -> ( [], projectContext ))
         |> Rule.withFinalProjectEvaluation finalProjectEvaluation
         |> Rule.fromProjectRuleSchema
 
@@ -114,6 +108,37 @@ defaultConfig =
     }
 
 
+updateConfig : (ElmCodeGenerator.GeneratorOptions -> ElmCodeGenerator.GeneratorOptions) -> ModuleContext -> ModuleContext
+updateConfig updateFn context =
+    { context | config = updateFn context.config }
+
+
+setConfigField : ModuleName -> ElmCodeGenerator.ImportSpec -> ElmCodeGenerator.GeneratorOptions -> ElmCodeGenerator.GeneratorOptions
+setConfigField modName importSpec config =
+    case modName of
+        [ "Json", "Decode" ] ->
+            { config | decodeImport = importSpec }
+
+        [ "Json", "Encode" ] ->
+            { config | encodeImport = importSpec }
+
+        [ "Json", "Decode", "Pipeline" ] ->
+            { config | decoderStyle = ElmCodeGenerator.PipelineDecoders importSpec }
+
+        [ "Json", "Decode", "Extra" ] ->
+            { config
+                | decoderStyle =
+                    if config.decoderStyle == ElmCodeGenerator.PlainDecoders then
+                        ElmCodeGenerator.ApplicativeDecoders importSpec
+
+                    else
+                        config.decoderStyle
+            }
+
+        _ ->
+            config
+
+
 importVisitor : Node Import -> ModuleContext -> ( List (Error {}), ModuleContext )
 importVisitor importNode context =
     let
@@ -121,6 +146,7 @@ importVisitor importNode context =
         importThing =
             Node.value importNode
 
+        modName : ModuleName
         modName =
             Node.value importNode |> .moduleName |> Node.value
 
@@ -159,41 +185,11 @@ importVisitor importNode context =
                             Nothing ->
                                 ElmCodeGenerator.ExposingNone
                    )
-
-        setField : ElmCodeGenerator.ImportSpec -> ElmCodeGenerator.GeneratorOptions -> ElmCodeGenerator.GeneratorOptions
-        setField value config =
-            case modName of
-                [ "Json", "Decode" ] ->
-                    { config | decodeImport = value }
-
-                [ "Json", "Encode" ] ->
-                    { config | encodeImport = value }
-
-                [ "Json", "Decode", "Pipeline" ] ->
-                    { config | decoderStyle = ElmCodeGenerator.PipelineDecoders value }
-
-                [ "Json", "Decode", "Extra" ] ->
-                    { config
-                        | decoderStyle =
-                            if config.decoderStyle == ElmCodeGenerator.PlainDecoders then
-                                ElmCodeGenerator.ApplicativeDecoders value
-
-                            else
-                                config.decoderStyle
-                    }
-
-                _ ->
-                    config
     in
     ( []
     , context
-        |> updateConfig (setField { importAlias = nameOrAlias |> String.join ".", exposingSpec = exposingList })
+        |> updateConfig (setConfigField modName { importAlias = nameOrAlias |> String.join ".", exposingSpec = exposingList })
     )
-
-
-updateConfig : (ElmCodeGenerator.GeneratorOptions -> ElmCodeGenerator.GeneratorOptions) -> ModuleContext -> ModuleContext
-updateConfig updateFn context =
-    { context | config = updateFn context.config }
 
 
 moduleVisitor : Rule.ModuleRuleSchema {} ModuleContext -> Rule.ModuleRuleSchema { hasAtLeastOneVisitor : () } ModuleContext
@@ -205,7 +201,7 @@ moduleVisitor schema =
 
 
 expressionVisitor : Node Expression -> ModuleContext -> ( List (Error {}), ModuleContext )
-expressionVisitor expression context =
+expressionVisitor _ context =
     ( [], context )
 
 
@@ -318,22 +314,15 @@ foldProjectContexts newContext previousContext =
 
 
 -- ELM.JSON VISITOR
-
-
-elmJsonVisitor : Maybe { elmJsonKey : Rule.ElmJsonKey, project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
-elmJsonVisitor maybeElmJson projectContext =
-    case maybeElmJson |> Maybe.map .project of
-        Just (Elm.Project.Package _) ->
-            ( [], projectContext )
-
-        Just (Elm.Project.Application _) ->
-            ( [], projectContext )
-
-        Nothing ->
-            ( [], projectContext )
-
-
-
+-- elmJsonVisitor : Maybe { elmJsonKey : Rule.ElmJsonKey, project : Elm.Project.Project } -> ProjectContext -> ( List nothing, ProjectContext )
+-- elmJsonVisitor maybeElmJson projectContext =
+-- case maybeElmJson |> Maybe.map .project of
+--     Just (Elm.Project.Package _) ->
+--         ( [], projectContext )
+--     Just (Elm.Project.Application _) ->
+--         ( [], projectContext )
+--     Nothing ->
+--         ( [], projectContext )
 -- DECLARATION VISITOR
 
 
@@ -357,18 +346,18 @@ declarationVisitor declarations context =
     )
 
 
-typeAnnotationReturnValue : Node TypeAnnotation -> Node TypeAnnotation
-typeAnnotationReturnValue typeAnnotation =
-    case typeAnnotation of
-        Node _ (TypeAnnotation.FunctionTypeAnnotation _ node_) ->
-            typeAnnotationReturnValue node_
 
-        _ ->
-            typeAnnotation
+-- typeAnnotationReturnValue : Node TypeAnnotation -> Node TypeAnnotation
+-- typeAnnotationReturnValue typeAnnotation =
+--     case typeAnnotation of
+--         Node _ (TypeAnnotation.FunctionTypeAnnotation _ node_) ->
+--             typeAnnotationReturnValue node_
+--         _ ->
+--             typeAnnotation
 
 
 maybeJsonSample : ModuleContext -> Range -> Function -> Maybe JsonSample
-maybeJsonSample ({ config } as context) declarationRange function =
+maybeJsonSample { config } declarationRange function =
     let
         declaration : Expression.FunctionImplementation
         declaration =
@@ -377,6 +366,7 @@ maybeJsonSample ({ config } as context) declarationRange function =
         newThing : Node Expression.FunctionImplementation -> Maybe JsonSample
         newThing (Node _ impl) =
             let
+                sampleDecl : Node Expression.FunctionImplementation -> Maybe String
                 sampleDecl (Node _ f) =
                     case f.expression of
                         Node _ (Expression.Application [ Node _ (Expression.FunctionOrValue [ "Debug" ] "todo"), Node _ (Expression.Literal literalString) ]) ->
@@ -426,15 +416,11 @@ generateJsonHandlingCode jsonSample =
 
 jsonAsElm : ElmCodeGenerator.GeneratorOptions -> String -> String
 jsonAsElm config jsonString =
-    let
-        _ =
-            Debug.log "Config" config
-    in
     case ElmCodeGenerator.fromJsonSample config jsonString of
         Err err ->
             err
 
-        Ok { imports, types, decoders, encoders } ->
+        Ok { types, decoders, encoders } ->
             if List.isEmpty types then
                 String.join "\n\n\n"
                     [ String.join "\n\n\n" decoders
@@ -469,16 +455,15 @@ finalProjectEvaluation projectContext =
                                     , details = [ "" ]
                                     }
                                     jsonSample.range
-                                    (Review.Fix.replaceRangeBy jsonSample.range fix
-                                        :: List.filterMap
-                                            (\( moduleName_, fix_ ) ->
-                                                if moduleName_ == moduleName then
-                                                    Just fix_
-
-                                                else
-                                                    Nothing
-                                            )
-                                            []
+                                    ([ Review.Fix.replaceRangeBy jsonSample.range fix ]
+                                     -- :: List.filterMap
+                                     --     (\( moduleName_, fix_ ) ->
+                                     --         if moduleName_ == moduleName then
+                                     --             Just fix_
+                                     --         else
+                                     --             Nothing
+                                     --     )
+                                     --     []
                                     )
                                     |> Just
 
