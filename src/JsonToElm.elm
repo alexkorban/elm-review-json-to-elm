@@ -38,7 +38,7 @@ JSON decoders and encoders as well as the necessary types and type aliases.
 
     sample : JsonString
     sample =
-        """{"a": 1}"""
+        """@json{"a": 1}"""
 
 
 ## After fix
@@ -205,33 +205,6 @@ expressionVisitor _ context =
     ( [], context )
 
 
-
--- case Node.value expression of
---     Expression.Application [ Node _ (Expression.FunctionOrValue [ "Debug" ] "todo"), Node _ (Expression.Literal literalString) ] ->
---         if literalString |> String.startsWith "@json" then
---             let
---                 jsonString : String
---                 jsonString =
---                     String.dropLeft 5 literalString
---             in
---             ( [ Rule.errorWithFix
---                     { message = "Here's my attempt to complete this stub"
---                     , details = [ "" ]
---                     }
---                     (Node.range expression)
---                     [ Review.Fix.replaceRangeBy (Node.range expression) <|
---                         withHugeIndentToEnsureValidSyntax (jsonAsElm context.config jsonString)
---                     ]
---               ]
---             , context
---             )
---         else
---             ( [], context )
---     _ ->
---         ( [], context )
--- CONTEXT
-
-
 type alias ProjectContext =
     { samples : List ( ModuleName, JsonSample )
     , moduleKeys : Dict ModuleName ModuleKey
@@ -346,16 +319,6 @@ declarationVisitor declarations context =
     )
 
 
-
--- typeAnnotationReturnValue : Node TypeAnnotation -> Node TypeAnnotation
--- typeAnnotationReturnValue typeAnnotation =
---     case typeAnnotation of
---         Node _ (TypeAnnotation.FunctionTypeAnnotation _ node_) ->
---             typeAnnotationReturnValue node_
---         _ ->
---             typeAnnotation
-
-
 maybeJsonSample : ModuleContext -> Range -> Function -> Maybe JsonSample
 maybeJsonSample { config } declarationRange function =
     let
@@ -395,18 +358,6 @@ maybeJsonSample { config } declarationRange function =
                     )
     in
     newThing function.declaration
-
-
-
--- case function.signature of
---     Just (Node _ signature) ->
---         case typeAnnotationReturnValue signature.typeAnnotation of
---             Node _ (TypeAnnotation.Typed (Node _ ( [], "JsonString" )) []) ->
---                 newThing signature
---             _ ->
---                 Nothing
---     _ ->
---         Nothing
 
 
 generateJsonHandlingCode : JsonSampleData -> String
